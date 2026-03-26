@@ -1,0 +1,88 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <WifiClientSecure.h>
+
+const char* ssid = "DePaula";
+const char* senha = "12345678";
+
+const char* serverN = "https://jsonplaceholder.typicode.com/todos/1";
+
+int led_ligado = 23;
+int led_desligado = 22;
+
+
+void setup(){
+  Serial.begin(115200);
+
+  WiFi.begin(ssid, senha);
+  Serial.print("Conectanto ao Wi-fi");
+  while(WiFi.status() != WL_CONNECTED){
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nConectado com sucesso");
+  Serial.print("Conectando a: ");
+  Serial.println(ssid);
+
+  pinMode(led_ligado, OUTPUT);
+  pinMode(led_desligado, OUTPUT);
+
+  int tentativas = 0;
+  while (WiFi.status() != WL_CONNECTED && tentativas < 20){
+    delay(500);
+    Serial.print(".");
+    tentativas++;
+  }
+
+  if(WiFi.status() == WL_CONNECTED){
+    Serial.println("\n Conectado!");
+    Serial.print("IP: ");
+    Serial.println(WiFi.localIP());
+    Serial.print("RSSI (sinal): ");
+    Serial.print(WiFi.RSSI());
+    Serial.println(" dBm");
+  }else{
+    
+    Serial.println("\n Falha na conecxão!");
+  }
+}
+
+void loop(){
+  if (WiFi.status() == WL_CONNECTED){
+    digitalWrite(led_ligado, HIGH);
+    digitalWrite(led_desligado, LOW);
+    WiFiClientSecure *client = new WiFiClientSecure;
+
+    if(client){
+      client->setInsecure();
+
+      HTTPClient https;
+
+      Serial.print("[HTTPS] Iniciando requisição...\n");
+
+      if(https.begin("client, serverN")){
+        int httpCode = https.GET();
+
+        if(httpCode > 0){
+          Serial.printf("[HTTPS] Código de resposta: %d\n", httpCode);
+
+          if (httpCode == HTTP_CODE_OK){
+            String payload = https.getString();
+            Serial.println("Conteudo recebido");
+            Serial.println(payload);
+          }
+        }else{
+          Serial.printf("[HTTPS] Falha na requisição, erro: %s\n", https.errorToString(httpCode).c_str());
+        }
+        https.end();
+      }else{
+        Serial.printf("[HTTPS] Não foi possível conectar ao servidor\n");
+      }
+      delete client;
+    }
+  }else{
+    digitalWrite(led_desligado, HIGH);
+    digitalWrite(led_ligado, LOW);
+  }
+  delay(10000);
+}
